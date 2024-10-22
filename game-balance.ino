@@ -1,4 +1,4 @@
-/*
+ /*
    -------------------------------------------------------------------------------------
    HX711_ADC
    Arduino library for HX711 24-Bit Analog-to-Digital Converter for Weight Scales
@@ -23,17 +23,18 @@
 #include <EEPROM.h>
 #endif
 
+
 //pins:
-// 1
-const int HX711_dout = 2; //mcu > HX711 dout pin
-const int HX711_sck = 3; //mcu > HX711 sck pin
-//2
+// A
+const int HX711_dout = 4; //mcu > HX711 dout pin
+const int HX711_sck = 5; //mcu > HX711 sck pin
+//B
 const int HX711_dout_2 = 8; //mcu > HX711 dout pin
 const int HX711_sck_2 = 9; //mcu > HX711 sck pin
 
 //HX711 constructor:
-HX711_ADC LoadCell_1(HX711_dout, HX711_sck);// 1
-HX711_ADC LoadCell_2(HX711_dout_2, HX711_sck_2);//2
+HX711_ADC LoadCell_1(HX711_dout, HX711_sck);// A
+HX711_ADC LoadCell_2(HX711_dout_2, HX711_sck_2);//B
 
 const int calVal_eepromAdress = 0;
 unsigned long t1 = 0;
@@ -41,13 +42,13 @@ unsigned long t2 = 0;
 
 
 void setup() {
-  Serial.begin(57600); delay(10);
+  Serial.begin(9600); delay(10);
   Serial.println();
   Serial.println("Starting...");
 
   LoadCell_1.begin();
   LoadCell_2.begin();
-  //LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
+//  LoadCell.setReverseOutput(); //uncomment to turn a negative output value to positive
   unsigned long stabilizingtime = 2000; // preciscion right after power-up can be improved by adding a few seconds of stabilizing time
   boolean _tare = true; //set this to false if you don't want tare to be performed in the next step
 
@@ -59,13 +60,14 @@ void setup() {
   }
   else {
     LoadCell_1.setCalFactor(1.0); 
-    LoadCell_2.setCalFactor(1.0); // user set calibration value (float), initial value 1.0 may be used for this sketch
+    LoadCell_2.setCalFactor(1.0); // valor de calibração definido pelo usuário (flutuante), o valor inicial 1,0 pode ser usado para este esboço
     Serial.println("Startup is complete");
   }
   while (!LoadCell_1.update());
+  Serial.println("LoadCell_1 ok");
   while (!LoadCell_2.update());
-  
-  calibrate(); //start calibration procedure
+  Serial.println("LoadCell_2 ok");
+  calibrate(); //iniciar procedimento de calibração
 }
 
 void loop() {
@@ -80,9 +82,9 @@ void loop() {
   if (newDataReady_1) {
     if (millis() > t1 + serialPrintInterval) {
      float i = LoadCell_1.getData();
-     Serial.print("Load_cell_1 output val: ");
-      Serial.print(i);
-      Serial.print(" : ");
+   //  Serial.print("Load_cell_1 output val: ");
+     // Serial.print(i);
+     // Serial.print(" : ");
       newDataReady_1 = 0;
       t1 = millis();
     }
@@ -92,12 +94,29 @@ void loop() {
   if (newDataReady_2) {
     if (millis() > t2 + serialPrintInterval) {
       float i = LoadCell_2.getData();
-      Serial.print("Load_cell_2 output val: ");
-      Serial.println(i);
+    //  Serial.print("Load_cell_2 output val: ");
+     // Serial.println(i);
       newDataReady_2 = 0;
       t2 = millis();
     }
   }
+
+  if(newDataReady_1 && newDataReady_2){
+   //facao a comparacao aqui dentro 
+  }
+  if(abs(LoadCell_1.getData()- LoadCell_2.getData()) < 30){
+  Serial.println ("E");
+  }
+  else {
+    if(LoadCell_1.getData() > LoadCell_2.getData()){
+    Serial.println ("A"); 
+    }
+    if(LoadCell_1.getData() < LoadCell_2.getData()){
+    Serial.println ("B");
+    }
+  }
+    
+
   
   // receive command from serial terminal
   if (Serial.available() > 0) {
@@ -111,7 +130,7 @@ void loop() {
   }
 
 
- delay(1000);
+ delay(100);
   // verifique se a última operação de tara foi concluída
   if (LoadCell_2.getTareStatus() == true) {
     Serial.println("Tare complete");
@@ -128,6 +147,7 @@ void calibrate() {
   Serial.println("Send 't' from serial monitor to set the tare offset.");
 
   boolean _resume = false;
+  boolean teste = false;
   while (_resume == false) {
     LoadCell_1.update();
     LoadCell_2.update();
@@ -137,15 +157,18 @@ void calibrate() {
         if (inByte == 't') {
           LoadCell_1.tareNoDelay();
           LoadCell_2.tareNoDelay();
+          teste= true;
         }
       }
     }
+    
     if (LoadCell_1.getTareStatus() == true && LoadCell_2.getTareStatus() == true) { //conferir que a tara está ok
       Serial.println("Tare complete");
 
       
       _resume = true;
     }
+    
   }
 
   Serial.println("Now, place your known mass on the loadcell.");
@@ -187,13 +210,13 @@ void calibrate() {
 #if defined(ESP8266)|| defined(ESP32)
         EEPROM.begin(512);
 #endif
-        EEPROM.put(calVal_eepromAdress, newCalibrationValue1);
+//        EEPROM.put(calVal_eepromAdress, newCalibrationValue1);
 #if defined(ESP8266)|| defined(ESP32)
         EEPROM.commit();
 #endif
-        EEPROM.get(calVal_eepromAdress, newCalibrationValue1);
+//        EEPROM.get(calVal_eepromAdress, newCalibrationValue1);
         Serial.print("Value ");
-        Serial.print(newCalibrationValue1);
+//        Serial.print(newCalibrationValue1);
         Serial.print(" saved to EEPROM address: ");
         Serial.println(calVal_eepromAdress);
         _resume = true;

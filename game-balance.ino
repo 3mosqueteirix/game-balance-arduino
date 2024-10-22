@@ -1,4 +1,4 @@
- /*
+/*
    -------------------------------------------------------------------------------------
    HX711_ADC
    Arduino library for HX711 24-Bit Analog-to-Digital Converter for Weight Scales
@@ -22,7 +22,7 @@
 #if defined(ESP8266)|| defined(ESP32) || defined(AVR)
 #include <EEPROM.h>
 #endif
-
+#include <ArduinoJson.h>
 
 //pins:
 // A
@@ -39,6 +39,7 @@ HX711_ADC LoadCell_2(HX711_dout_2, HX711_sck_2);//B
 const int calVal_eepromAdress = 0;
 unsigned long t1 = 0;
 unsigned long t2 = 0;
+JsonDocument doc;
 
 
 void setup() {
@@ -67,7 +68,8 @@ void setup() {
   Serial.println("LoadCell_1 ok");
   while (!LoadCell_2.update());
   Serial.println("LoadCell_2 ok");
-  calibrate(); //iniciar procedimento de calibração
+  
+  //calibrate(); //iniciar procedimento de calibração
 }
 
 void loop() {
@@ -81,7 +83,11 @@ void loop() {
   // get smoothed value from the dataset:
   if (newDataReady_1) {
     if (millis() > t1 + serialPrintInterval) {
+     long tempo_inicial = millis();
      float i = LoadCell_1.getData();
+     long tempo_final = millis();
+
+     //Serial.println(tempo_final-tempo_inicial);
    //  Serial.print("Load_cell_1 output val: ");
      // Serial.print(i);
      // Serial.print(" : ");
@@ -105,18 +111,32 @@ void loop() {
    //facao a comparacao aqui dentro 
   }
   if(abs(LoadCell_1.getData()- LoadCell_2.getData()) < 30){
-  Serial.println ("E");
+    //Serial.println ("E");
+    doc["s"] = "parado";
+    doc ["p1"]  =  LoadCell_1.getData();
+    doc ["p2"]  =  LoadCell_2.getData();
+//    doc ["diferenca"] = abs(LoadCell_1.getData()- LoadCell_2.getData());
   }
   else {
     if(LoadCell_1.getData() > LoadCell_2.getData()){
-    Serial.println ("A"); 
+  //    Serial.println ("A"); 
+      doc["s"] = "dir";
+      doc ["p1"]  =  LoadCell_1.getData();
+      doc ["p2"]  =  LoadCell_2.getData();
+//      doc ["diferenca"] = abs(LoadCell_1.getData()- LoadCell_2.getData());
     }
     if(LoadCell_1.getData() < LoadCell_2.getData()){
-    Serial.println ("B");
+      Serial.println ("B");
+      doc["s"] = "esq";
+      doc ["p1"]  =  LoadCell_1.getData();
+      doc ["p2"]  =  LoadCell_2.getData();
+  //    doc ["diferenca"] = abs(LoadCell_1.getData()- LoadCell_2.getData());
     }
   }
-    
 
+  serializeJson(doc, Serial);    
+  //serializeJsonPretty(doc, Serial);
+  Serial.println();
   
   // receive command from serial terminal
   if (Serial.available() > 0) {
@@ -130,7 +150,7 @@ void loop() {
   }
 
 
- delay(100);
+ delay(500);
   // verifique se a última operação de tara foi concluída
   if (LoadCell_2.getTareStatus() == true) {
     Serial.println("Tare complete");
